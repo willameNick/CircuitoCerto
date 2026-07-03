@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --graphite:#14161B;
@@ -130,6 +131,17 @@
   .disclaimer{font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:14px;}
 
+  .ref-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px;}
+  .ref-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+    padding:8px 8px;border-bottom:1px solid var(--line);}
+  .ref-table td{padding:9px 8px;border-bottom:1px solid var(--line);}
+  .ref-table tr:last-child td{border-bottom:none;}
+  .ref-table td.hi{color:var(--copper-hi);font-family:'IBM Plex Mono',monospace;}
+  .ref-table td.am{color:var(--amber);font-family:'IBM Plex Mono',monospace;}
+  .ref-table .tag-ind{font-size:9px;color:var(--amber);border:1px solid #4A3B12;padding:1px 5px;border-radius:7px;margin-left:6px;}
+
+  .pdf-btn{margin-top:14px;background:linear-gradient(180deg,#3A3F4B,#22252C);border:1px solid var(--line);}
+
   footer{padding:26px 20px 10px;text-align:center;}
   footer .sig{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--copper-hi);}
   footer .by{font-size:11px;color:var(--muted);margin-top:4px;}
@@ -147,7 +159,7 @@
       <h1>CircuitoCerto</h1>
       <span class="tag">Dimensionamento elétrico residencial · NBR 5410</span>
     </div>
-    <span class="badge">v1.0</span>
+    <span class="badge">v1.1</span>
   </header>
 
   <!-- STEP 1: VOLTAGE -->
@@ -235,12 +247,20 @@
   <section id="dimSection" class="hidden">
     <p class="eyebrow">Dimensionamento ABNT NBR 5410</p>
     <h2 class="step">Disjuntor, cabo, DR e DPS</h2>
-    <div id="dimCards"></div>
-    <div class="disclaimer">
+
+    <div class="sub" style="font-size:11.5px;color:var(--muted);margin-bottom:6px;">Bitola de cabo por equipamento, do maior para o menor amperagem</div>
+    <table class="ref-table" id="refTable"></table>
+
+    <div id="dimCards" style="margin-top:18px;"></div>
+
+    <button class="btn pdf-btn" onclick="generatePDF()">📄 Baixar projeto em PDF</button>
+
+    <div class="disclaimer" style="margin-top:14px;">
       ⚠ Ferramenta de apoio educacional. O cálculo usa a tabela simplificada de ampacidade (método B1, PVC, 30 °C)
-      e soma das correntes nominais sem fator de demanda/agrupamento. Para o projeto executivo e o laudo final,
-      valide o dimensionamento com um engenheiro eletricista responsável, conforme NBR 5410 e as normas técnicas
-      da concessionária local (ex: Equatorial Piauí).
+      e soma das correntes nominais sem fator de demanda/agrupamento. O disjuntor e o cabo do quadro geral são
+      estimados a partir da potência total dividida pela tensão de entrada (220 V se houver carga em 220 V, senão 127 V) —
+      uma simplificação didática. Para o projeto executivo e o laudo final, valide o dimensionamento com um engenheiro
+      eletricista responsável, conforme NBR 5410 e as normas técnicas da concessionária local (ex: Equatorial Piauí).
     </div>
   </section>
 
@@ -443,6 +463,17 @@ function dpsFor(totalCurrent, v){
   return {uc, imax, class:'Classe II', in:'5kA'};
 }
 
+// Corrente de projeto do quadro geral: soma de POTÊNCIA (isso sempre pode ser somado,
+// mesmo entre equipamentos de tensões diferentes) dividida pela tensão de entrada.
+// Somar diretamente as correntes de circuitos em 127V e 220V não é correto, pois são
+// grandezas de referências elétricas diferentes.
+function generalPanelCurrent(items){
+  const totalPowerAll = items.reduce((s,i)=>s+i._powerTotal,0);
+  const hasHigh = items.some(i=>i.voltage>=220);
+  const refV = hasHigh ? 220 : 127;
+  return {current: totalPowerAll/refV, refV, totalPowerAll};
+}
+
 /* ---------- CALCULATE ---------- */
 function calculate(){
   if(added.length===0){ alert('Adicione ao menos um equipamento antes de calcular.'); return; }
@@ -453,8 +484,8 @@ function calculate(){
     item._powerTotal = item.power*item.qty;
   });
 
-  const totalCurrent127or220 = added.reduce((s,i)=>s+i._current,0);
   const totalPower = added.reduce((s,i)=>s+i._powerTotal,0);
+  const general = generalPanelCurrent(added);
 
   document.getElementById('resultsSection').classList.remove('hidden');
   document.getElementById('dimSection').classList.remove('hidden');
@@ -464,8 +495,8 @@ function calculate(){
   lcd.innerHTML = `
     <div class="lcd-row"><span class="k">Equipamentos no circuito</span><span class="v">${added.length}</span></div>
     <div class="lcd-row"><span class="k">Potência total instalada</span><span class="v">${(totalPower/1000).toFixed(2)} kW</span></div>
-    <div class="lcd-row"><span class="k">Corrente total (soma nominal)</span><span class="v">${totalCurrent127or220.toFixed(2)} A</span></div>
-    <div class="lcd-row"><span class="k">Tensão de referência</span><span class="v">${voltage} V</span></div>
+    <div class="lcd-row"><span class="k">Corrente de projeto — quadro geral (${general.refV} V)</span><span class="v">${general.current.toFixed(2)} A</span></div>
+    <div class="lcd-row"><span class="k">Tensão de referência dos circuitos</span><span class="v">${voltage} V</span></div>
   `;
 
   // cost panel
@@ -492,9 +523,29 @@ function calculate(){
   }
 
   renderChart(added, costEnabled);
-  renderDimensioning(added, totalCurrent127or220);
+  renderRefTable(added);
+  renderDimensioning(added, general);
 
   document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
+}
+
+function renderRefTable(items){
+  const table = document.getElementById('refTable');
+  const sorted = [...items].sort((a,b)=>b._current-a._current);
+  const rows = sorted.map(item=>{
+    const dim = dimensionFor(item._current);
+    return `
+      <tr>
+        <td>${item.name}${item.dedicated?'<span class="tag-ind">indep.</span>':''}</td>
+        <td class="am">${item._current.toFixed(2)} A</td>
+        <td>${dim.breaker} A</td>
+        <td class="hi">${dim.cableSection} mm²</td>
+      </tr>`;
+  }).join('');
+  table.innerHTML = `
+    <tr><th>Equipamento</th><th>Corrente</th><th>Disjuntor</th><th>Cabo</th></tr>
+    ${rows}
+  `;
 }
 
 function renderChart(items, useCost){
@@ -526,7 +577,7 @@ function renderChart(items, useCost){
   });
 }
 
-function renderDimensioning(items, totalCurrent){
+function renderDimensioning(items, general){
   const container = document.getElementById('dimCards');
   container.innerHTML = '';
 
@@ -541,18 +592,25 @@ function renderDimensioning(items, totalCurrent){
     ));
   });
 
-  if(shared.length){
-    const sharedCurrent = shared.reduce((s,i)=>s+i._current,0);
-    const dim = dimensionFor(sharedCurrent);
+  // Agrupa tomadas/iluminação por tensão — nunca soma corrente de tensões diferentes
+  const sharedVoltages = [...new Set(shared.map(i=>i.voltage))];
+  sharedVoltages.forEach(v=>{
+    const group = shared.filter(i=>i.voltage===v);
+    const groupCurrent = group.reduce((s,i)=>s+i._current,0);
+    const dim = dimensionFor(groupCurrent);
     container.appendChild(dimCard(
-      'Circuito de tomadas / iluminação geral', `${shared.length} equipamento(s) agrupados · ${voltage} V`,
-      dim, dpsFor(dim.current, voltage), shared.map(s=>s.name).join(', ')
+      `Circuito de tomadas / iluminação — ${v} V`, `${group.length} equipamento(s) agrupados`,
+      dim, dpsFor(dim.current, v), group.map(s=>s.name).join(', ')
     ));
-  }
+  });
 
-  // General panel entry
-  const dimGeral = dimensionFor(totalCurrent);
-  const card = dimCard('Quadro geral (entrada)', 'Somatório de todos os circuitos', dimGeral, dpsFor(totalCurrent, voltage));
+  // Quadro geral (entrada) — corrente de projeto = potência total / tensão de entrada
+  const dimGeral = dimensionFor(general.current);
+  const card = dimCard(
+    'Quadro geral (entrada)',
+    `Potência total ${(general.totalPowerAll/1000).toFixed(2)} kW ÷ ${general.refV} V`,
+    dimGeral, dpsFor(dimGeral.current, general.refV)
+  );
   card.style.borderColor = '#C9834B';
   container.appendChild(card);
 }
@@ -574,6 +632,147 @@ function dimCard(title, sub, dim, dps, note){
     ${dim.oversized ? '<div class="flag">Corrente acima da faixa padrão de disjuntores residenciais — recomenda-se avaliação de engenheiro para dimensionamento em quadro de distribuição de maior porte.</div>' : ''}
   `;
   return div;
+}
+
+/* ---------- PDF EXPORT ---------- */
+function sectionTitlePDF(doc, title, x, y){
+  doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(30,30,30);
+  doc.text(title, x, y);
+  return y+6;
+}
+
+function drawTablePDF(doc, x, y, colWidths, headers, rows){
+  const rowH = 7;
+  doc.setFontSize(8.5);
+  doc.setFillColor(235,225,210);
+  doc.setTextColor(40,40,40);
+  doc.setFont('helvetica','bold');
+  let cx = x;
+  headers.forEach((h,i)=>{
+    doc.rect(cx, y, colWidths[i], rowH, 'F');
+    doc.setDrawColor(210,210,210);
+    doc.rect(cx, y, colWidths[i], rowH);
+    doc.text(h, cx+2, y+5);
+    cx += colWidths[i];
+  });
+  y += rowH;
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(50,50,50);
+  rows.forEach(r=>{
+    if(y+rowH > 282){
+      doc.addPage(); y=20;
+      // redraw header on new page
+      cx = x;
+      doc.setFillColor(235,225,210); doc.setFont('helvetica','bold'); doc.setTextColor(40,40,40);
+      headers.forEach((h,i)=>{
+        doc.rect(cx, y, colWidths[i], rowH, 'F');
+        doc.rect(cx, y, colWidths[i], rowH);
+        doc.text(h, cx+2, y+5);
+        cx += colWidths[i];
+      });
+      y += rowH;
+      doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50);
+    }
+    cx = x;
+    r.forEach((cell,i)=>{
+      doc.setDrawColor(210,210,210);
+      doc.rect(cx, y, colWidths[i], rowH);
+      doc.text(String(cell), cx+2, y+5, {maxWidth: colWidths[i]-3});
+      cx += colWidths[i];
+    });
+    y += rowH;
+  });
+  return y+4;
+}
+
+function generatePDF(){
+  if(added.length===0){ alert('Calcule o dimensionamento antes de baixar o projeto.'); return; }
+  if(!window.jspdf){ alert('Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente.'); return; }
+
+  added.forEach(item=>{
+    item._current = item.measured ? item.measured : (item.power*item.qty/item.voltage);
+    item._powerTotal = item.power*item.qty;
+  });
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const marginX = 15;
+  let y = 20;
+
+  function checkPage(need){
+    if(y+need > 282){ doc.addPage(); y=20; }
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(30,30,30);
+  doc.text('CircuitoCerto', marginX, y); y+=7;
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text('Projeto Elétrico Simplificado — Dimensionamento conforme NBR 5410', marginX, y); y+=6;
+  doc.setFontSize(9); doc.setTextColor(110,110,110);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} · Tensão de referência dos circuitos: ${voltage} V`, marginX, y); y+=10;
+  doc.setDrawColor(200,140,80); doc.setLineWidth(0.6);
+  doc.line(marginX, y, 195, y); y+=8;
+
+  // Equipamentos
+  y = sectionTitlePDF(doc, 'Equipamentos do circuito', marginX, y);
+  const eqHeaders = ['Equipamento','Pot. (W)','Qtd','Tensão','Corrente (A)'];
+  const eqRows = added.map(i=>[i.name, String(i.power), String(i.qty), i.voltage+'V', i._current.toFixed(2)]);
+  y = drawTablePDF(doc, marginX, y, [75,25,15,25,35], eqHeaders, eqRows);
+  y += 6;
+
+  // Dimensionamento
+  checkPage(20);
+  y = sectionTitlePDF(doc, 'Dimensionamento — disjuntor, cabo, DR e DPS', marginX, y);
+  const dimHeaders = ['Circuito','I proj. (A)','Disjuntor','Cabo','DR','DPS'];
+  const dimRows = [];
+  added.filter(i=>i.dedicated).forEach(item=>{
+    const dim = dimensionFor(item._current);
+    const dps = dpsFor(dim.current, item.voltage);
+    dimRows.push([item.name, dim.current.toFixed(2), dim.breaker+'A', dim.cableSection+'mm²', '30mA', dps.uc]);
+  });
+  const sharedItems = added.filter(i=>!i.dedicated);
+  [...new Set(sharedItems.map(i=>i.voltage))].forEach(v=>{
+    const group = sharedItems.filter(i=>i.voltage===v);
+    const groupCurrent = group.reduce((s,i)=>s+i._current,0);
+    const dim = dimensionFor(groupCurrent);
+    const dps = dpsFor(dim.current, v);
+    dimRows.push([`Tomadas/Ilumin. ${v}V`, dim.current.toFixed(2), dim.breaker+'A', dim.cableSection+'mm²', '30mA', dps.uc]);
+  });
+  const general = generalPanelCurrent(added);
+  const dimGeral = dimensionFor(general.current);
+  const dpsGeral = dpsFor(dimGeral.current, general.refV);
+  dimRows.push([`Quadro geral (${general.refV}V)`, dimGeral.current.toFixed(2), dimGeral.breaker+'A', dimGeral.cableSection+'mm²', '30mA', dpsGeral.uc]);
+  y = drawTablePDF(doc, marginX, y, [50,25,25,25,20,35], dimHeaders, dimRows);
+  y += 6;
+
+  // Custo de energia
+  if(costEnabled){
+    checkPage(20);
+    y = sectionTitlePDF(doc, 'Consumo e custo estimado de energia (R$ 1,15/kWh)', marginX, y);
+    const costHeaders = ['Equipamento','kWh/mês','Custo (R$)'];
+    let totalKwh=0, totalCost=0;
+    const costRows = added.map(item=>{
+      const kwh = (item._powerTotal/1000)*item.hours*item.days;
+      const cost = kwh*1.15;
+      totalKwh+=kwh; totalCost+=cost;
+      return [item.name, kwh.toFixed(1), cost.toFixed(2)];
+    });
+    costRows.push(['TOTAL', totalKwh.toFixed(1), totalCost.toFixed(2)]);
+    y = drawTablePDF(doc, marginX, y, [95,45,45], costHeaders, costRows);
+    y += 6;
+  }
+
+  // Disclaimer
+  checkPage(30);
+  doc.setFontSize(8.5); doc.setTextColor(120,120,120); doc.setFont('helvetica','normal');
+  const disclaimer = 'Ferramenta de apoio educacional. Calculo baseado em tabela simplificada de ampacidade (metodo B1, PVC, 30 graus C) e soma de correntes nominais sem fator de demanda/agrupamento. O quadro geral usa a potencia total dividida pela tensao de entrada. Este documento nao substitui o projeto executivo nem a ART de um engenheiro eletricista responsavel, conforme NBR 5410 e as normas da concessionaria local.';
+  const split = doc.splitTextToSize(disclaimer, 180);
+  doc.text(split, marginX, y); y += split.length*4 + 10;
+
+  checkPage(15);
+  doc.setFontSize(9.5); doc.setTextColor(180,130,70); doc.setFont('helvetica','bold');
+  doc.text('CircuitoCerto — Desenvolvido por Nick5188', marginX, y);
+
+  doc.save(`CircuitoCerto-projeto-${Date.now()}.pdf`);
 }
 
 /* ---------- INIT ---------- */
