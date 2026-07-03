@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CircuitoCerto — Dimensionamento Elétrico ABNT</title>
+<meta name="theme-color" content="#14161B">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --graphite:#14161B;
+    --panel:#1D2027;
+    --panel-2:#242832;
+    --line:#333844;
+    --copper:#C9834B;
+    --copper-hi:#E3A46E;
+    --amber:#FFC107;
+    --off:#EDEAE0;
+    --muted:#93989E;
+    --green:#3FA34D;
+    --red:#E6533F;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--graphite);color:var(--off);
+    font-family:'Inter',system-ui,sans-serif; -webkit-tap-highlight-color:transparent;}
+  h1,h2,h3,.display{font-family:'Space Grotesk',system-ui,sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  a{color:inherit;}
+
+  .app{max-width:720px;margin:0 auto;padding:0 0 60px;}
+
+  header.hero{
+    position:relative;padding:34px 20px 26px;
+    background:radial-gradient(120% 140% at 15% 0%, #2A2E38 0%, #14161B 60%);
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;
+  }
+  header.hero img{width:56px;height:56px;border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.4);}
+  header.hero .title{display:flex;flex-direction:column;}
+  header.hero h1{margin:0;font-size:22px;letter-spacing:.2px;color:var(--off);}
+  header.hero .tag{margin-top:3px;font-size:12.5px;color:var(--muted);}
+  header.hero .badge{
+    margin-left:auto;font-size:10.5px;color:var(--amber);border:1px solid #4A3B12;
+    background:#241C05;padding:5px 9px;border-radius:20px;white-space:nowrap;
+  }
+
+  section{padding:22px 20px;border-bottom:1px solid var(--line);}
+  .eyebrow{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--copper-hi);font-weight:600;margin:0 0 6px;}
+  h2.step{font-size:18px;margin:0 0 14px;}
+
+  .voltage-toggle{display:flex;gap:10px;}
+  .vbtn{flex:1;padding:16px;border-radius:var(--radius);border:1px solid var(--line);
+    background:var(--panel);color:var(--off);text-align:center;cursor:pointer;transition:.15s;}
+  .vbtn .v{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;display:block;}
+  .vbtn .l{font-size:11.5px;color:var(--muted);margin-top:2px;display:block;}
+  .vbtn.active{border-color:var(--amber);background:linear-gradient(180deg,#2B2408,#1D2027);box-shadow:0 0 0 1px var(--amber) inset;}
+  .vbtn.active .v{color:var(--amber);}
+
+  .lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .lib-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;transition:.15s;}
+  .lib-card:active{transform:scale(.97);}
+  .lib-card.on{border-color:var(--copper);background:linear-gradient(180deg,#2A2117,#1D2027);}
+  .lib-card .ic{font-size:20px;}
+  .lib-card .nm{font-size:13px;font-weight:500;margin-top:6px;line-height:1.25;}
+  .lib-card .pw{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--copper-hi);margin-top:4px;}
+  .lib-card .ded{font-size:9.5px;color:var(--amber);margin-top:3px;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);
+    color:var(--off);font-weight:600;font-size:14px;cursor:pointer;width:100%;
+  }
+  .btn.primary{background:linear-gradient(180deg,var(--copper-hi),var(--copper));color:#1B120A;border:none;}
+  .btn.amber{background:linear-gradient(180deg,#FFD24D,var(--amber));color:#241C05;border:none;}
+  .btn.ghost{background:transparent;}
+  .btn.small{padding:9px 12px;font-size:12.5px;width:auto;}
+  .btn-row{display:flex;gap:10px;margin-top:14px;}
+
+  .added-list{display:flex;flex-direction:column;gap:10px;}
+  .item-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .item-top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .item-top .nm{font-weight:600;font-size:14.5px;}
+  .item-top .dedicated-tag{font-size:9.5px;color:var(--amber);border:1px solid #4A3B12;padding:2px 6px;border-radius:8px;margin-left:8px;}
+  .rm{background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:4px;}
+  .field-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .field{flex:1;min-width:90px;}
+  .field label{display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+  .field input{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--off);padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:13.5px;
+  }
+  .field input:focus{outline:none;border-color:var(--copper);}
+  .item-readout{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--copper-hi);}
+
+  .cost-toggle{display:flex;align-items:center;justify-content:space-between;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .switch{width:46px;height:26px;border-radius:20px;background:#2E3340;position:relative;cursor:pointer;flex-shrink:0;transition:.15s;}
+  .switch.on{background:linear-gradient(90deg,var(--copper),var(--amber));}
+  .switch .knob{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#EDEAE0;transition:.15s;}
+  .switch.on .knob{left:23px;}
+
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:20px 10px;border:1px dashed var(--line);border-radius:12px;}
+
+  .lcd-panel{background:#1A1608;border:1px solid #4A3B12;border-radius:14px;padding:18px;margin-top:16px;}
+  .lcd-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid #332907;}
+  .lcd-row:last-child{border-bottom:none;}
+  .lcd-row .k{font-size:12px;color:#B99B4E;}
+  .lcd-row .v{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--amber);font-weight:600;}
+
+  .chart-wrap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px;}
+
+  .dim-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;}
+  .dim-card h3{margin:0 0 3px;font-size:15px;}
+  .dim-card .sub{font-size:11.5px;color:var(--muted);margin-bottom:12px;}
+  .dim-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .dim-box{background:var(--panel-2);border-radius:10px;padding:10px 12px;}
+  .dim-box .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);}
+  .dim-box .val{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--off);margin-top:3px;font-weight:600;}
+  .dim-box.copper .val{color:var(--copper-hi);}
+  .dim-box.amber .val{color:var(--amber);}
+  .dim-box.green .val{color:var(--green);}
+  .flag{margin-top:10px;font-size:11.5px;color:var(--red);background:#2A1614;border:1px solid #4A2320;padding:8px 10px;border-radius:8px;}
+
+  .disclaimer{font-size:11.5px;color:var(--muted);line-height:1.5;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:14px;}
+
+  footer{padding:26px 20px 10px;text-align:center;}
+  footer .sig{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--copper-hi);}
+  footer .by{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  .hidden{display:none !important;}
+  ::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hero">
+    <img src="icon-192.png" alt="CircuitoCerto">
+    <div class="title">
+      <h1>CircuitoCerto</h1>
+      <span class="tag">Dimensionamento elétrico residencial · NBR 5410</span>
+    </div>
+    <span class="badge">v1.0</span>
+  </header>
+
+  <!-- STEP 1: VOLTAGE -->
+  <section>
+    <p class="eyebrow">Passo 1</p>
+    <h2 class="step">Qual a tensão do circuito?</h2>
+    <div class="voltage-toggle">
+      <div class="vbtn active" data-v="127" onclick="setVoltage(127)">
+        <span class="v">127V</span><span class="l">Fase-Neutro</span>
+      </div>
+      <div class="vbtn" data-v="220" onclick="setVoltage(220)">
+        <span class="v">220V</span><span class="l">Fase-Neutro / Fase-Fase</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2: LIBRARY -->
+  <section>
+    <p class="eyebrow">Passo 2</p>
+    <h2 class="step">Selecione os equipamentos</h2>
+    <div class="lib-grid" id="libGrid"></div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="openCustomForm()">+ Adicionar equipamento personalizado</button>
+    </div>
+    <div id="customForm" class="item-card hidden" style="margin-top:12px;">
+      <div class="field-row">
+        <div class="field" style="flex:2;">
+          <label>Nome</label>
+          <input id="cName" type="text" placeholder="Ex: Bomba de piscina">
+        </div>
+        <div class="field">
+          <label>Potência (W)</label>
+          <input id="cPower" type="number" placeholder="750">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn small" onclick="closeCustomForm()">Cancelar</button>
+        <button class="btn small primary" onclick="addCustom()">Adicionar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: SELECTED LIST -->
+  <section>
+    <p class="eyebrow">Passo 3</p>
+    <h2 class="step">Circuito a dimensionar</h2>
+    <p style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:14px;">
+      Se você já mediu a carga com o alicate amperímetro, informe a corrente medida — ela substitui o cálculo por potência.
+    </p>
+    <div class="added-list" id="addedList"></div>
+    <div class="empty" id="emptyMsg">Nenhum equipamento selecionado ainda. Toque em um item acima para adicionar.</div>
+  </section>
+
+  <!-- STEP 4: COST -->
+  <section>
+    <p class="eyebrow">Passo 4</p>
+    <h2 class="step">Calcular custo de energia?</h2>
+    <div class="cost-toggle">
+      <div>
+        <div style="font-weight:600;font-size:13.5px;">Estimar consumo e conta de luz</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Baseado em R$ 1,15 / kWh</div>
+      </div>
+      <div class="switch" id="costSwitch" onclick="toggleCost()"><div class="knob"></div></div>
+    </div>
+  </section>
+
+  <!-- STEP 5: CALCULATE -->
+  <section>
+    <button class="btn amber" style="padding:16px;font-size:15px;" onclick="calculate()">Calcular dimensionamento</button>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="resultsSection" class="hidden">
+    <p class="eyebrow">Resultado</p>
+    <h2 class="step">Leitura geral do circuito</h2>
+    <div class="lcd-panel" id="lcdSummary"></div>
+
+    <div id="costPanel" class="lcd-panel hidden" style="margin-top:12px;"></div>
+
+    <div class="chart-wrap">
+      <canvas id="consumptionChart" height="220"></canvas>
+    </div>
+  </section>
+
+  <section id="dimSection" class="hidden">
+    <p class="eyebrow">Dimensionamento ABNT NBR 5410</p>
+    <h2 class="step">Disjuntor, cabo, DR e DPS</h2>
+    <div id="dimCards"></div>
+    <div class="disclaimer">
+      ⚠ Ferramenta de apoio educacional. O cálculo usa a tabela simplificada de ampacidade (método B1, PVC, 30 °C)
+      e soma das correntes nominais sem fator de demanda/agrupamento. Para o projeto executivo e o laudo final,
+      valide o dimensionamento com um engenheiro eletricista responsável, conforme NBR 5410 e as normas técnicas
+      da concessionária local (ex: Equatorial Piauí).
+    </div>
+  </section>
+
+  <footer>
+    <div class="sig">⚡ CircuitoCerto</div>
+    <div class="by">Desenvolvido por Nick5188</div>
+  </footer>
+</div>
+
+<script>
+/* ---------- DATA ---------- */
+const equipmentLibrary = [
+  {name:"Chuveiro Elétrico", power:5500, dedicated:true, icon:"🚿"},
+  {name:"Ar Condicionado 9.000 BTU", power:900, dedicated:true, icon:"❄️"},
+  {name:"Ar Condicionado 12.000 BTU", power:1200, dedicated:true, icon:"❄️"},
+  {name:"Ar Condicionado 18.000 BTU", power:1800, dedicated:true, icon:"❄️"},
+  {name:"Forno Elétrico", power:1500, dedicated:true, icon:"🔥"},
+  {name:"Fogão por Indução", power:2000, dedicated:true, icon:"🍳"},
+  {name:"Máquina de Lavar Roupa", power:500, dedicated:true, icon:"🧺"},
+  {name:"Máquina de Lavar Louça", power:1200, dedicated:true, icon:"🍽️"},
+  {name:"Secadora de Roupas", power:2000, dedicated:true, icon:"🌀"},
+  {name:"Aquecedor de Ambiente", power:1500, dedicated:true, icon:"♨️"},
+  {name:"Bomba D'água", power:750, dedicated:true, icon:"🚰"},
+  {name:"Geladeira / Refrigerador", power:150, dedicated:false, icon:"🧊"},
+  {name:"Freezer", power:200, dedicated:false, icon:"❄️"},
+  {name:"Micro-ondas", power:1200, dedicated:false, icon:"📡"},
+  {name:"Ferro de Passar", power:1000, dedicated:false, icon:"👕"},
+  {name:"Torradeira", power:800, dedicated:false, icon:"🍞"},
+  {name:"Liquidificador", power:300, dedicated:false, icon:"🥤"},
+  {name:"Televisão", power:100, dedicated:false, icon:"📺"},
+  {name:"Computador / Notebook", power:200, dedicated:false, icon:"💻"},
+  {name:"Ventilador", power:100, dedicated:false, icon:"🌬️"},
+  {name:"Lâmpada LED", power:10, dedicated:false, icon:"💡"},
+];
+
+// Simplified NBR 5410 ampacity table — method B1, PVC insulation, 2 loaded conductors, 30°C
+const cableTable = [
+  {section:1.5, ampacity:15.5},
+  {section:2.5, ampacity:21},
+  {section:4,   ampacity:28},
+  {section:6,   ampacity:36},
+  {section:10,  ampacity:50},
+  {section:16,  ampacity:68},
+  {section:25,  ampacity:89},
+  {section:35,  ampacity:110},
+  {section:50,  ampacity:134},
+  {section:70,  ampacity:171},
+];
+const breakerSizes = [10,16,20,25,32,40,50,63,70,80,100,125];
+
+/* ---------- STATE ---------- */
+let voltage = 127;
+let added = []; // {id, name, power, qty, voltage, measured, dedicated, hours, days}
+let costEnabled = false;
+let uid = 0;
+let chartRef = null;
+
+/* ---------- RENDER LIBRARY ---------- */
+function renderLibrary(){
+  const grid = document.getElementById('libGrid');
+  grid.innerHTML = '';
+  equipmentLibrary.forEach((eq, idx)=>{
+    const isOn = added.some(a=>a.libIdx===idx);
+    const card = document.createElement('div');
+    card.className = 'lib-card' + (isOn ? ' on' : '');
+    card.onclick = ()=>toggleLibItem(idx);
+    card.innerHTML = `
+      <div class="ic">${eq.icon}</div>
+      <div class="nm">${eq.name}</div>
+      <div class="pw">${eq.power} W (média)</div>
+      ${eq.dedicated ? '<div class="ded">circuito independente</div>' : ''}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function toggleLibItem(idx){
+  const existing = added.find(a=>a.libIdx===idx);
+  if(existing){
+    added = added.filter(a=>a!==existing);
+  } else {
+    const eq = equipmentLibrary[idx];
+    added.push({
+      id:++uid, libIdx:idx, name:eq.name, power:eq.power, qty:1,
+      voltage: eq.power>=1500 && voltage===127 ? 220 : voltage,
+      measured:null, dedicated:eq.dedicated, hours:2, days:30
+    });
+  }
+  renderLibrary();
+  renderAdded();
+}
+
+function openCustomForm(){ document.getElementById('customForm').classList.remove('hidden'); }
+function closeCustomForm(){ document.getElementById('customForm').classList.add('hidden'); }
+function addCustom(){
+  const name = document.getElementById('cName').value.trim();
+  const power = parseFloat(document.getElementById('cPower').value);
+  if(!name || !power || power<=0){ alert('Informe nome e potência válidos.'); return; }
+  added.push({
+    id:++uid, libIdx:-1, name, power, qty:1, voltage,
+    measured:null, dedicated: power>=1500, hours:2, days:30
+  });
+  document.getElementById('cName').value='';
+  document.getElementById('cPower').value='';
+  closeCustomForm();
+  renderAdded();
+}
+
+/* ---------- RENDER ADDED LIST ---------- */
+function renderAdded(){
+  const list = document.getElementById('addedList');
+  const empty = document.getElementById('emptyMsg');
+  list.innerHTML = '';
+  empty.classList.toggle('hidden', added.length>0);
+
+  added.forEach(item=>{
+    const current = item.measured ? item.measured : (item.power*item.qty/item.voltage).toFixed(2);
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="item-top">
+        <div class="nm">${item.name}${item.dedicated?'<span class="dedicated-tag">indep.</span>':''}</div>
+        <button class="rm" onclick="removeItem(${item.id})">remover</button>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Potência (W)</label>
+          <input type="number" value="${item.power}" onchange="updateItem(${item.id},'power',this.value)">
+        </div>
+        <div class="field">
+          <label>Qtd.</label>
+          <input type="number" min="1" value="${item.qty}" onchange="updateItem(${item.id},'qty',this.value)">
+        </div>
+        <div class="field">
+          <label>Tensão (V)</label>
+          <input type="number" value="${item.voltage}" onchange="updateItem(${item.id},'voltage',this.value)">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Corrente medida (A) — opcional</label>
+          <input type="number" step="0.01" placeholder="alicate amperímetro" value="${item.measured??''}" onchange="updateItem(${item.id},'measured',this.value)">
+        </div>
+        ${costEnabled ? `
+        <div class="field">
+          <label>Horas/dia</label>
+          <input type="number" step="0.5" value="${item.hours}" onchange="updateItem(${item.id},'hours',this.value)">
+        </div>
+        <div class="field">
+          <label>Dias/mês</label>
+          <input type="number" value="${item.days}" onchange="updateItem(${item.id},'days',this.value)">
+        </div>` : ''}
+      </div>
+      <div class="item-readout">I = ${current} A ${item.measured?'(medida)':'(calculada: P/V)'}</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function updateItem(id, field, value){
+  const item = added.find(a=>a.id===id);
+  if(!item) return;
+  if(field==='measured'){
+    item.measured = value===''? null : parseFloat(value);
+  } else {
+    item[field] = parseFloat(value);
+  }
+  renderAdded();
+}
+function removeItem(id){
+  added = added.filter(a=>a.id!==id);
+  renderLibrary();
+  renderAdded();
+}
+
+function setVoltage(v){
+  voltage = v;
+  document.querySelectorAll('.vbtn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.v)===v));
+}
+
+function toggleCost(){
+  costEnabled = !costEnabled;
+  document.getElementById('costSwitch').classList.toggle('on', costEnabled);
+  renderAdded();
+}
+
+/* ---------- DIMENSIONING ---------- */
+function dimensionFor(current){
+  let breaker = breakerSizes.find(b=>b>=current);
+  let oversized = false;
+  if(!breaker){ breaker = breakerSizes[breakerSizes.length-1]; oversized = true; }
+  let cable = cableTable.find(c=>c.ampacity>=breaker && c.section>=2.5);
+  if(!cable) cable = cableTable[cableTable.length-1];
+  return {current, breaker, cableSection:cable.section, cableAmpacity:cable.ampacity, oversized};
+}
+
+function dpsFor(totalCurrent, v){
+  const uc = v>=220 ? '275V' : '175V';
+  const imax = totalCurrent>63 ? '40kA' : '20kA';
+  return {uc, imax, class:'Classe II', in:'5kA'};
+}
+
+/* ---------- CALCULATE ---------- */
+function calculate(){
+  if(added.length===0){ alert('Adicione ao menos um equipamento antes de calcular.'); return; }
+
+  // per-item current
+  added.forEach(item=>{
+    item._current = item.measured ? item.measured : (item.power*item.qty/item.voltage);
+    item._powerTotal = item.power*item.qty;
+  });
+
+  const totalCurrent127or220 = added.reduce((s,i)=>s+i._current,0);
+  const totalPower = added.reduce((s,i)=>s+i._powerTotal,0);
+
+  document.getElementById('resultsSection').classList.remove('hidden');
+  document.getElementById('dimSection').classList.remove('hidden');
+
+  // LCD summary
+  const lcd = document.getElementById('lcdSummary');
+  lcd.innerHTML = `
+    <div class="lcd-row"><span class="k">Equipamentos no circuito</span><span class="v">${added.length}</span></div>
+    <div class="lcd-row"><span class="k">Potência total instalada</span><span class="v">${(totalPower/1000).toFixed(2)} kW</span></div>
+    <div class="lcd-row"><span class="k">Corrente total (soma nominal)</span><span class="v">${totalCurrent127or220.toFixed(2)} A</span></div>
+    <div class="lcd-row"><span class="k">Tensão de referência</span><span class="v">${voltage} V</span></div>
+  `;
+
+  // cost panel
+  const costPanel = document.getElementById('costPanel');
+  if(costEnabled){
+    costPanel.classList.remove('hidden');
+    let totalKwh = 0, totalCost = 0;
+    let rows = added.map(item=>{
+      const kwh = (item._powerTotal/1000) * item.hours * item.days;
+      const cost = kwh * 1.15;
+      totalKwh += kwh; totalCost += cost;
+      return {name:item.name, kwh, cost};
+    });
+    costPanel.innerHTML = rows.map(r=>`
+      <div class="lcd-row"><span class="k">${r.name}</span><span class="v">${r.kwh.toFixed(1)} kWh · R$ ${r.cost.toFixed(2)}</span></div>
+    `).join('') + `
+      <div class="lcd-row" style="border-top:1px solid #4A3B12;margin-top:6px;padding-top:10px;">
+        <span class="k" style="color:#FFC107;">TOTAL / MÊS</span>
+        <span class="v" style="font-size:19px;">${totalKwh.toFixed(1)} kWh · R$ ${totalCost.toFixed(2)}</span>
+      </div>
+    `;
+  } else {
+    costPanel.classList.add('hidden');
+  }
+
+  renderChart(added, costEnabled);
+  renderDimensioning(added, totalCurrent127or220);
+
+  document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
+}
+
+function renderChart(items, useCost){
+  const ctx = document.getElementById('consumptionChart');
+  const labels = items.map(i=>i.name);
+  const data = useCost
+    ? items.map(i=> (i._powerTotal/1000) * i.hours * i.days )
+    : items.map(i=> i._powerTotal );
+
+  if(chartRef) chartRef.destroy();
+  chartRef = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label: useCost ? 'Consumo mensal (kWh)' : 'Potência (W)',
+        data,
+        backgroundColor:'#C9834B',
+        borderRadius:6,
+      }]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#93989E',font:{size:10}}, grid:{color:'#33384433'}},
+        y:{ticks:{color:'#93989E'}, grid:{color:'#33384433'}}
+      }
+    }
+  });
+}
+
+function renderDimensioning(items, totalCurrent){
+  const container = document.getElementById('dimCards');
+  container.innerHTML = '';
+
+  const dedicated = items.filter(i=>i.dedicated);
+  const shared = items.filter(i=>!i.dedicated);
+
+  dedicated.forEach(item=>{
+    const dim = dimensionFor(item._current);
+    container.appendChild(dimCard(
+      item.name, `Circuito independente · ${item.voltage} V`,
+      dim, dpsFor(dim.current, item.voltage)
+    ));
+  });
+
+  if(shared.length){
+    const sharedCurrent = shared.reduce((s,i)=>s+i._current,0);
+    const dim = dimensionFor(sharedCurrent);
+    container.appendChild(dimCard(
+      'Circuito de tomadas / iluminação geral', `${shared.length} equipamento(s) agrupados · ${voltage} V`,
+      dim, dpsFor(dim.current, voltage), shared.map(s=>s.name).join(', ')
+    ));
+  }
+
+  // General panel entry
+  const dimGeral = dimensionFor(totalCurrent);
+  const card = dimCard('Quadro geral (entrada)', 'Somatório de todos os circuitos', dimGeral, dpsFor(totalCurrent, voltage));
+  card.style.borderColor = '#C9834B';
+  container.appendChild(card);
+}
+
+function dimCard(title, sub, dim, dps, note){
+  const div = document.createElement('div');
+  div.className = 'dim-card';
+  div.innerHTML = `
+    <h3>${title}</h3>
+    <div class="sub">${sub}${note?' · '+note:''}</div>
+    <div class="dim-grid">
+      <div class="dim-box amber"><div class="lbl">Corrente de projeto</div><div class="val">${dim.current.toFixed(2)} A</div></div>
+      <div class="dim-box"><div class="lbl">Disjuntor</div><div class="val">${dim.breaker} A</div></div>
+      <div class="dim-box copper"><div class="lbl">Cabo de cobre</div><div class="val">${dim.cableSection} mm²</div></div>
+      <div class="dim-box"><div class="lbl">Ampacidade do cabo</div><div class="val">${dim.cableAmpacity} A</div></div>
+      <div class="dim-box green"><div class="lbl">DR / IDR</div><div class="val">30 mA</div></div>
+      <div class="dim-box green"><div class="lbl">DPS</div><div class="val">${dps.class} · ${dps.uc}</div></div>
+    </div>
+    ${dim.oversized ? '<div class="flag">Corrente acima da faixa padrão de disjuntores residenciais — recomenda-se avaliação de engenheiro para dimensionamento em quadro de distribuição de maior porte.</div>' : ''}
+  `;
+  return div;
+}
+
+/* ---------- INIT ---------- */
+renderLibrary();
+renderAdded();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
