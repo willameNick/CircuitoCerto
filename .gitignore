@@ -12,3 +12,8 @@ android/.idea
 android/captures
 android/*.iml
 android/app/*.iml
+
+# Release signing (NEVER commit these)
+android/keystore.properties
+android/app/*.jks
+android/app/*.keystore
