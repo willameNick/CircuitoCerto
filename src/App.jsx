@@ -387,7 +387,7 @@ function DashboardTab({ stats, setTab }) {
       </Panel>
       <Panel title="Sobre o app" icon={Info}>
         <p className="text-xs text-slate-400 leading-relaxed">
-          CircuitoCerto ajuda a estimar cargas, corrente e dimensionamento de cabos/disjuntores
+          Circuito Certo Pro ajuda a estimar cargas, corrente e dimensionamento de cabos/disjuntores
           com base em valores de referência da NBR 5410, além de um dimensionamento simplificado
           de sistemas fotovoltaicos. Os resultados são educativos — a instalação real deve ser
           projetada e executada por um profissional habilitado.
@@ -1174,7 +1174,7 @@ export default function App() {
             <Zap className="w-5 h-5 text-slate-950" />
           </div>
           <div>
-            <div className="font-bold text-sm leading-none">Circuito<span className="text-orange-400">Certo</span></div>
+            <div className="font-bold text-sm leading-none">Circuito<span className="text-orange-400">Certo</span> <span className="text-blue-400">Pro</span></div>
             <div className="text-[10px] text-slate-500 leading-none mt-0.5">Cálculos elétricos com precisão</div>
           </div>
         </div>
@@ -1203,9 +1203,5 @@ export default function App() {
       </main>
 
       <footer className="border-t border-slate-800 px-4 py-3 text-center text-[11px] text-slate-600">
-        CircuitoCerto — ferramenta de referência educativa (NBR 5410 simplificada). Válide sempre com um profissional habilitado.
-        <div className="mt-1 italic text-slate-700">assinatura eletrônica: N!coll@$</div>
-      </footer>
-    </div>
-  );
-}
+        Circuito Certo Pro — ferramenta de referência educativa (NBR 5410 simplificada). Válide sempre com um profissional habilitado.
+        <div className="mt-1 italic text-slate-700">assinatura eletrôni
